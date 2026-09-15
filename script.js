@@ -455,7 +455,83 @@ function buildSmartRoute(item, drops, components) {
 // ==========================================
 // ROUTE WARFRAME
 // ==========================================
+// ==========================================
+// GPS SCORE V1
+// ==========================================
 
+function calculateGPSScore(route) {
+
+    if (!route) {
+        return 0;
+    }
+
+    const componentCount =
+        route.components.length;
+
+    const chances =
+        route.components.map(component => {
+
+            const chance =
+                Number(component.chance) || 0;
+
+            return chance <= 1
+                ? chance * 100
+                : chance;
+        });
+
+
+    const averageChance =
+        chances.length
+            ? chances.reduce(
+                (total, chance) => total + chance,
+                0
+            ) / chances.length
+            : 0;
+
+
+    // 60 points maximum :
+    // plusieurs composants dans la même mission
+
+    const componentScore =
+        Math.min(
+            componentCount * 30,
+            60
+        );
+
+
+    // 40 points maximum :
+    // probabilité moyenne de drop
+
+    const chanceScore =
+        Math.min(
+            averageChance * 2,
+            40
+        );
+
+
+    return Math.round(
+        componentScore +
+        chanceScore
+    );
+}
+
+
+function getGPSScoreLabel(score) {
+
+    if (score >= 80) {
+        return "EXCELLENT";
+    }
+
+    if (score >= 60) {
+        return "TRÈS BON";
+    }
+
+    if (score >= 40) {
+        return "BON";
+    }
+
+    return "STANDARD";
+}
 function buildWarframeRoute(
     components,
     itemName
@@ -611,21 +687,25 @@ function buildWarframeRoute(
     }
 
 
-    routes.sort((a, b) => {
+    routes.forEach(route => {
 
-        const componentDifference =
-            b.components.length -
-            a.components.length;
+    route.gpsScore =
+        calculateGPSScore(route);
 
-        if (componentDifference !== 0) {
-            return componentDifference;
-        }
+});
 
-        return (
-            b.totalChance -
-            a.totalChance
-        );
-    });
+
+routes.sort((a, b) => {
+
+    if (b.gpsScore !== a.gpsScore) {
+        return b.gpsScore - a.gpsScore;
+    }
+
+    return (
+        b.totalChance -
+        a.totalChance
+    );
+});
 
 
     const bestRoute =
@@ -653,7 +733,21 @@ function buildWarframeRoute(
                 <span class="route-badge">
                     ★ ROUTE PRINCIPALE
                 </span>
+<div class="gps-score">
 
+    <span>
+        EFFICACITÉ GPS
+    </span>
+
+    <strong>
+        ${bestRoute.gpsScore}/100
+    </strong>
+
+    <small>
+        ${getGPSScoreLabel(bestRoute.gpsScore)}
+    </small>
+
+</div>
             </div>
 
 

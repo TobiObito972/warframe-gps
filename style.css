@@ -787,3 +787,168 @@ footer {
         flex-direction: column;
     }
 }
+/* =================================
+   WARFRAME GPS — COMPONENT ROUTE
+================================= */
+
+.component-route {
+    margin-top: 15px;
+}
+
+.component-gps {
+    display: grid;
+    grid-template-columns: 50px 1fr;
+
+    gap: 15px;
+
+    margin-bottom: 12px;
+}
+
+.component-number {
+    width: 42px;
+    height: 42px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: #58d9ff;
+
+    border: 1px solid rgba(88,217,255,.3);
+
+    border-radius: 50%;
+
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.component-main {
+    padding: 18px;
+
+    background: rgba(255,255,255,.025);
+
+    border: 1px solid rgba(88,217,255,.12);
+
+    border-radius: 8px;
+}
+
+.component-header {
+    display: flex;
+    align-items: center;
+
+    gap: 12px;
+
+    margin-bottom: 15px;
+}
+
+.component-header strong {
+    display: block;
+
+    font-size: 16px;
+}
+
+.component-header span {
+    display: block;
+
+    color: #71838f;
+
+    font-size: 11px;
+
+    margin-top: 4px;
+}
+
+.component-image {
+    width: 45px;
+    height: 45px;
+
+    object-fit: contain;
+}
+
+.component-destination {
+    padding: 13px;
+
+    background: rgba(88,217,255,.05);
+
+    border-left: 2px solid #58d9ff;
+
+    border-radius: 4px;
+}
+
+.component-destination > span {
+    display: block;
+
+    color: #58d9ff;
+
+    font-size: 8px;
+
+    letter-spacing: 2px;
+
+    margin-bottom: 6px;
+}
+
+.component-destination strong {
+    display: block;
+
+    font-size: 13px;
+}
+
+.component-destination small {
+    display: block;
+
+    color: #81929d;
+
+    margin-top: 6px;
+}
+
+.component-destination.unavailable {
+    border-left-color: #52616a;
+}
+
+.component-alternatives {
+    margin-top: 12px;
+}
+
+.component-alternatives summary {
+    color: #58d9ff;
+
+    cursor: pointer;
+
+    font-size: 11px;
+}
+
+.alternative-row {
+    display: flex;
+    justify-content: space-between;
+
+    gap: 20px;
+
+    padding: 10px;
+
+    margin-top: 5px;
+
+    background: rgba(0,0,0,.15);
+
+    border-radius: 4px;
+
+    font-size: 11px;
+}
+
+.alternative-row span {
+    color: #9aabb5;
+}
+
+.alternative-row strong {
+    color: #58d9ff;
+}
+
+@media(max-width:550px) {
+
+    .component-gps {
+        grid-template-columns: 1fr;
+    }
+
+    .component-number {
+        width: 35px;
+        height: 35px;
+    }
+}

@@ -674,3 +674,116 @@ footer {
 
     color: #58d9ff;
 }
+/* ================================
+   WARFRAME GPS — GPS V1
+================================ */
+
+.gps-route {
+    margin: 28px 0;
+    padding: 25px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(88,217,255,.09),
+            rgba(88,217,255,.02)
+        );
+
+    border: 1px solid rgba(88,217,255,.25);
+    border-left: 3px solid #58d9ff;
+
+    border-radius: 8px;
+}
+
+.gps-route-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.gps-route h4 {
+    font-size: 24px;
+    margin: 13px 0 20px;
+}
+
+.best-badge {
+    color: #58d9ff;
+    font-size: 9px;
+    letter-spacing: 1px;
+}
+
+.gps-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.gps-stats div {
+    padding: 13px;
+    background: rgba(0,0,0,.2);
+    border-radius: 6px;
+}
+
+.gps-stats span {
+    display: block;
+    color: #657985;
+    font-size: 9px;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+}
+
+.gps-stats strong {
+    color: #fff;
+}
+
+.components-section {
+    margin-top: 30px;
+}
+
+.component-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.component {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 15px;
+
+    border: 1px solid rgba(88,217,255,.12);
+    border-radius: 6px;
+
+    background: rgba(255,255,255,.025);
+    color: white;
+
+    cursor: pointer;
+    text-align: left;
+
+    transition: .2s;
+}
+
+.component:hover {
+    border-color: #58d9ff;
+    background: rgba(88,217,255,.07);
+}
+
+.component span {
+    color: #58d9ff;
+}
+
+@media(max-width:550px) {
+
+    .component-grid,
+    .gps-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .gps-route-title {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

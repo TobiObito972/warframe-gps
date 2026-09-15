@@ -218,16 +218,12 @@ function displayGPS(item) {
             <p class="item-description">
                 ${escapeHTML(description)}
             </p>
+            
+${buildSmartRoute(item, drops, components)}
 
+${buildDrops(drops)}
 
-            ${buildRoute(bestDrop)}
-
-
-            ${buildDrops(drops)}
-
-
-            ${buildComponents(components)}
-
+${buildComponents(components)}
 
             ${buildGPSAdvice(
                 item,
@@ -239,7 +235,291 @@ function displayGPS(item) {
     `;
 }
 
+// ==========================================
+// ROUTE GPS INTELLIGENTE V5
+// ==========================================
 
+function buildSmartRoute(item, drops, components) {
+
+    const category = normalizeText(
+        item.category ||
+        item.type ||
+        item.productCategory ||
+        ""
+    );
+
+    const isWarframe =
+        category.includes("warframe");
+
+    // Objet classique / ressource
+    if (!isWarframe) {
+
+        const bestDrop = chooseBestDrop(drops);
+
+        return buildRoute(bestDrop);
+    }
+
+    // WARFRAME
+    return buildWarframeRoute(components);
+}
+
+
+// ==========================================
+// ROUTE WARFRAME
+// ==========================================
+
+function buildWarframeRoute(components) {
+
+    if (!components.length) {
+
+        return `
+            <div class="gps-route">
+
+                <span class="gps-label">
+                    ROUTE GPS
+                </span>
+
+                <h4>
+                    Données de fabrication indisponibles
+                </h4>
+
+            </div>
+        `;
+    }
+
+
+    const destinations = {};
+
+
+    components.forEach(component => {
+
+        if (!Array.isArray(component.drops)) {
+            return;
+        }
+
+        component.drops.forEach(drop => {
+
+            const location =
+                drop.location ||
+                drop.place ||
+                drop.node ||
+                drop.mission;
+
+            if (!location) {
+                return;
+            }
+
+            if (!destinations[location]) {
+
+                destinations[location] = {
+                    location: location,
+                    components: [],
+                    totalChance: 0
+                };
+            }
+
+
+            destinations[location].components.push({
+
+                name:
+                    component.name ||
+                    "Composant",
+
+                chance:
+                    getChance(drop),
+
+                rarity:
+                    drop.rarity || ""
+
+            });
+
+
+            destinations[location].totalChance +=
+                getChance(drop);
+        });
+    });
+
+
+    const routes =
+        Object.values(destinations);
+
+
+    if (!routes.length) {
+
+        return `
+            <div class="gps-route">
+
+                <span class="gps-label">
+                    ROUTE GPS WARFRAME
+                </span>
+
+                <h4>
+                    Analyse des composants
+                </h4>
+
+                <p>
+                    Les composants ont été identifiés,
+                    mais aucune mission commune exploitable
+                    n'a encore été trouvée.
+                </p>
+
+            </div>
+        `;
+    }
+
+
+    // Priorité :
+    // 1. nombre de composants disponibles au même endroit
+    // 2. probabilités disponibles
+
+    routes.sort((a, b) => {
+
+        const componentDifference =
+            b.components.length -
+            a.components.length;
+
+        if (componentDifference !== 0) {
+            return componentDifference;
+        }
+
+        return (
+            b.totalChance -
+            a.totalChance
+        );
+    });
+
+
+    const bestRoute = routes[0];
+
+
+    return `
+        <div class="smart-route">
+
+            <div class="smart-route-header">
+
+                <div>
+
+                    <span class="gps-label">
+                        ROUTE GPS OPTIMISÉE
+                    </span>
+
+                    <h4>
+                        ${escapeHTML(bestRoute.location)}
+                    </h4>
+
+                </div>
+
+                <span class="route-badge">
+                    ★ ROUTE PRINCIPALE
+                </span>
+
+            </div>
+
+
+            <p class="route-explanation">
+
+                Cette destination permet d'obtenir
+                <strong>
+                    ${bestRoute.components.length}
+                </strong>
+
+                composant(s) recherché(s)
+                dans la même mission.
+
+            </p>
+
+
+            <div class="route-components">
+
+                ${bestRoute.components.map(component => `
+
+                    <div class="route-component">
+
+                        <div>
+
+                            <span>
+                                COMPOSANT
+                            </span>
+
+                            <strong>
+                                ${escapeHTML(component.name)}
+                            </strong>
+
+                        </div>
+
+                        <div>
+
+                            <span>
+                                CHANCE
+                            </span>
+
+                            <strong>
+                                ${formatChance(component.chance)}
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                `).join("")}
+
+            </div>
+
+
+            ${
+                routes.length > 1
+                ? buildAlternativeRoutes(routes.slice(1, 4))
+                : ""
+            }
+
+        </div>
+    `;
+}
+
+
+// ==========================================
+// ROUTES ALTERNATIVES
+// ==========================================
+
+function buildAlternativeRoutes(routes) {
+
+    if (!routes.length) {
+        return "";
+    }
+
+
+    return `
+        <details class="smart-alternatives">
+
+            <summary>
+                Voir les routes alternatives
+            </summary>
+
+
+            ${routes.map(route => `
+
+                <div class="smart-alternative">
+
+                    <div>
+
+                        <strong>
+                            ${escapeHTML(route.location)}
+                        </strong>
+
+                        <span>
+                            ${route.components.length}
+                            composant(s)
+                        </span>
+
+                    </div>
+
+                </div>
+
+            `).join("")}
+
+        </details>
+    `;
+}
 // ==========================================
 // HEADER
 // ==========================================

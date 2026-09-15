@@ -557,12 +557,12 @@ function buildComponents(components) {
         <div class="components-section">
 
             <span class="gps-label">
-                COMPOSANTS NÉCESSAIRES
+                ROUTE DE FABRICATION
             </span>
 
-            <div class="component-grid">
+            <div class="component-route">
 
-                ${components.map(component => {
+                ${components.map((component, index) => {
 
                     const name =
                         component.name ||
@@ -573,23 +573,157 @@ function buildComponents(components) {
                         component.count ||
                         1;
 
+                    const drops =
+                        Array.isArray(component.drops)
+                            ? component.drops
+                            : [];
+
+                    const bestDrop =
+                        chooseBestDrop(drops);
+
+                    const location =
+                        bestDrop
+                            ? (
+                                bestDrop.location ||
+                                bestDrop.place ||
+                                bestDrop.node ||
+                                bestDrop.mission ||
+                                "Localisation inconnue"
+                              )
+                            : null;
+
+                    const image =
+                        component.imageName
+                            ? `https://cdn.warframestat.us/img/${component.imageName}`
+                            : null;
+
                     return `
-                        <button
-                            class="component"
-                            onclick="searchComponent(
-                                '${escapeJS(name)}'
-                            )"
-                        >
+                        <div class="component-gps">
 
-                            <strong>
-                                ${escapeHTML(name)}
-                            </strong>
+                            <div class="component-number">
+                                ${String(index + 1).padStart(2, "0")}
+                            </div>
 
-                            <span>
-                                × ${quantity}
-                            </span>
+                            <div class="component-main">
 
-                        </button>
+                                <div class="component-header">
+
+                                    ${
+                                        image
+                                        ? `
+                                            <img
+                                                class="component-image"
+                                                src="${escapeHTML(image)}"
+                                                alt="${escapeHTML(name)}"
+                                            >
+                                        `
+                                        : ""
+                                    }
+
+                                    <div>
+                                        <strong>
+                                            ${escapeHTML(name)}
+                                        </strong>
+
+                                        <span>
+                                            Quantité : ${quantity}
+                                        </span>
+                                    </div>
+
+                                </div>
+
+
+                                ${
+                                    bestDrop
+                                    ? `
+                                        <div class="component-destination">
+
+                                            <span>
+                                                DESTINATION RECOMMANDÉE
+                                            </span>
+
+                                            <strong>
+                                                ${escapeHTML(location)}
+                                            </strong>
+
+                                            <small>
+                                                Chance :
+                                                ${formatChance(bestDrop.chance)}
+
+                                                ${
+                                                    bestDrop.rarity
+                                                    ? ` • ${escapeHTML(bestDrop.rarity)}`
+                                                    : ""
+                                                }
+                                            </small>
+
+                                        </div>
+                                    `
+                                    : `
+                                        <div class="component-destination unavailable">
+
+                                            <span>
+                                                ACQUISITION
+                                            </span>
+
+                                            <strong>
+                                                Pas de drop direct identifié
+                                            </strong>
+
+                                        </div>
+                                    `
+                                }
+
+
+                                ${
+                                    drops.length > 1
+                                    ? `
+                                        <details class="component-alternatives">
+
+                                            <summary>
+                                                Voir ${drops.length} sources
+                                            </summary>
+
+                                            ${[...drops]
+                                                .sort(
+                                                    (a, b) =>
+                                                        getChance(b) -
+                                                        getChance(a)
+                                                )
+                                                .slice(0, 6)
+                                                .map(drop => {
+
+                                                    const dropLocation =
+                                                        drop.location ||
+                                                        drop.place ||
+                                                        drop.node ||
+                                                        drop.mission ||
+                                                        "Localisation inconnue";
+
+                                                    return `
+                                                        <div class="alternative-row">
+
+                                                            <span>
+                                                                ${escapeHTML(dropLocation)}
+                                                            </span>
+
+                                                            <strong>
+                                                                ${formatChance(drop.chance)}
+                                                            </strong>
+
+                                                        </div>
+                                                    `;
+
+                                                }).join("")}
+
+                                        </details>
+                                    `
+                                    : ""
+                                }
+
+                            </div>
+
+                        </div>
                     `;
 
                 }).join("")}
@@ -599,6 +733,8 @@ function buildComponents(components) {
         </div>
     `;
 }
+
+   
 
 
 // ==========================================

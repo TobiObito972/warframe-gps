@@ -1,12 +1,18 @@
+// ==========================================
+// WARFRAME GPS
+// ==========================================
+
 const API = "https://api.warframestat.us";
 
 const searchInput = document.getElementById("searchInput");
 const searchButton = document.getElementById("searchButton");
 const searchResults = document.getElementById("searchResults");
 
+let currentItem = null;
+
 
 // ==========================================
-// RECHERCHE PRINCIPALE
+// RECHERCHE
 // ==========================================
 
 async function searchItem() {
@@ -24,22 +30,20 @@ async function searchItem() {
 
         let items = await searchDirect(query);
 
-        // Si la recherche directe échoue,
-        // on cherche dans la base complète.
         if (!items.length) {
             items = await searchAllItems(query);
         }
 
         if (!items.length) {
-
             showMessage(
                 `Aucun résultat trouvé pour "${escapeHTML(query)}".`
             );
-
             return;
         }
 
         const item = chooseBestResult(items, query);
+
+        currentItem = item;
 
         displayGPS(item);
 
@@ -49,16 +53,12 @@ async function searchItem() {
 
         searchResults.innerHTML = `
             <div class="result-card">
-
-                <strong>
-                    Impossible de récupérer les données.
-                </strong>
+                <strong>Impossible de récupérer les données.</strong>
 
                 <p class="item-description">
                     La base Warframe est peut-être temporairement
                     indisponible. Réessaie dans quelques instants.
                 </p>
-
             </div>
         `;
     }
@@ -66,7 +66,7 @@ async function searchItem() {
 
 
 // ==========================================
-// RECHERCHE API DIRECTE
+// API
 // ==========================================
 
 async function searchDirect(query) {
@@ -85,15 +85,14 @@ async function searchDirect(query) {
 
         return normalizeResults(data);
 
-    } catch {
+    } catch (error) {
+
+        console.error("Direct search error:", error);
+
         return [];
     }
 }
 
-
-// ==========================================
-// RECHERCHE DE SECOURS
-// ==========================================
 
 async function searchAllItems(query) {
 
@@ -157,10 +156,6 @@ function normalizeText(text) {
 }
 
 
-// ==========================================
-// CHOIX DU MEILLEUR RESULTAT
-// ==========================================
-
 function chooseBestResult(items, query) {
 
     const normalizedQuery = normalizeText(query);
@@ -175,7 +170,7 @@ function chooseBestResult(items, query) {
 
 
 // ==========================================
-// GPS
+// AFFICHAGE PRINCIPAL
 // ==========================================
 
 function displayGPS(item) {
@@ -198,15 +193,12 @@ function displayGPS(item) {
         ? `https://cdn.warframestat.us/img/${item.imageName}`
         : null;
 
-
     const drops = getDrops(item);
 
     const components = getComponents(item);
 
-    const bestDrop = chooseBestDrop(drops);
-
-
     searchResults.innerHTML = `
+
         <div class="result-card gps-card">
 
             ${buildHeader(
@@ -218,12 +210,19 @@ function displayGPS(item) {
             <p class="item-description">
                 ${escapeHTML(description)}
             </p>
-            
-${buildSmartRoute(item, drops, components)}
 
-${buildDrops(drops)}
+            ${buildSmartRoute(
+                item,
+                drops,
+                components
+            )}
 
-${buildComponents(components)}
+            ${buildDrops(drops)}
+
+            ${buildComponents(
+                components,
+                name
+            )}
 
             ${buildGPSAdvice(
                 item,
@@ -235,291 +234,7 @@ ${buildComponents(components)}
     `;
 }
 
-// ==========================================
-// ROUTE GPS INTELLIGENTE V5
-// ==========================================
 
-function buildSmartRoute(item, drops, components) {
-
-    const category = normalizeText(
-        item.category ||
-        item.type ||
-        item.productCategory ||
-        ""
-    );
-
-    const isWarframe =
-        category.includes("warframe");
-
-    // Objet classique / ressource
-    if (!isWarframe) {
-
-        const bestDrop = chooseBestDrop(drops);
-
-        return buildRoute(bestDrop);
-    }
-
-    // WARFRAME
-    return buildWarframeRoute(components);
-}
-
-
-// ==========================================
-// ROUTE WARFRAME
-// ==========================================
-
-function buildWarframeRoute(components) {
-
-    if (!components.length) {
-
-        return `
-            <div class="gps-route">
-
-                <span class="gps-label">
-                    ROUTE GPS
-                </span>
-
-                <h4>
-                    Données de fabrication indisponibles
-                </h4>
-
-            </div>
-        `;
-    }
-
-
-    const destinations = {};
-
-
-    components.forEach(component => {
-
-        if (!Array.isArray(component.drops)) {
-            return;
-        }
-
-        component.drops.forEach(drop => {
-
-            const location =
-                drop.location ||
-                drop.place ||
-                drop.node ||
-                drop.mission;
-
-            if (!location) {
-                return;
-            }
-
-            if (!destinations[location]) {
-
-                destinations[location] = {
-                    location: location,
-                    components: [],
-                    totalChance: 0
-                };
-            }
-
-
-            destinations[location].components.push({
-
-                name:
-                    component.name ||
-                    "Composant",
-
-                chance:
-                    getChance(drop),
-
-                rarity:
-                    drop.rarity || ""
-
-            });
-
-
-            destinations[location].totalChance +=
-                getChance(drop);
-        });
-    });
-
-
-    const routes =
-        Object.values(destinations);
-
-
-    if (!routes.length) {
-
-        return `
-            <div class="gps-route">
-
-                <span class="gps-label">
-                    ROUTE GPS WARFRAME
-                </span>
-
-                <h4>
-                    Analyse des composants
-                </h4>
-
-                <p>
-                    Les composants ont été identifiés,
-                    mais aucune mission commune exploitable
-                    n'a encore été trouvée.
-                </p>
-
-            </div>
-        `;
-    }
-
-
-    // Priorité :
-    // 1. nombre de composants disponibles au même endroit
-    // 2. probabilités disponibles
-
-    routes.sort((a, b) => {
-
-        const componentDifference =
-            b.components.length -
-            a.components.length;
-
-        if (componentDifference !== 0) {
-            return componentDifference;
-        }
-
-        return (
-            b.totalChance -
-            a.totalChance
-        );
-    });
-
-
-    const bestRoute = routes[0];
-
-
-    return `
-        <div class="smart-route">
-
-            <div class="smart-route-header">
-
-                <div>
-
-                    <span class="gps-label">
-                        ROUTE GPS OPTIMISÉE
-                    </span>
-
-                    <h4>
-                        ${escapeHTML(bestRoute.location)}
-                    </h4>
-
-                </div>
-
-                <span class="route-badge">
-                    ★ ROUTE PRINCIPALE
-                </span>
-
-            </div>
-
-
-            <p class="route-explanation">
-
-                Cette destination permet d'obtenir
-                <strong>
-                    ${bestRoute.components.length}
-                </strong>
-
-                composant(s) recherché(s)
-                dans la même mission.
-
-            </p>
-
-
-            <div class="route-components">
-
-                ${bestRoute.components.map(component => `
-
-                    <div class="route-component">
-
-                        <div>
-
-                            <span>
-                                COMPOSANT
-                            </span>
-
-                            <strong>
-                                ${escapeHTML(component.name)}
-                            </strong>
-
-                        </div>
-
-                        <div>
-
-                            <span>
-                                CHANCE
-                            </span>
-
-                            <strong>
-                                ${formatChance(component.chance)}
-                            </strong>
-
-                        </div>
-
-                    </div>
-
-                `).join("")}
-
-            </div>
-
-
-            ${
-                routes.length > 1
-                ? buildAlternativeRoutes(routes.slice(1, 4))
-                : ""
-            }
-
-        </div>
-    `;
-}
-
-
-// ==========================================
-// ROUTES ALTERNATIVES
-// ==========================================
-
-function buildAlternativeRoutes(routes) {
-
-    if (!routes.length) {
-        return "";
-    }
-
-
-    return `
-        <details class="smart-alternatives">
-
-            <summary>
-                Voir les routes alternatives
-            </summary>
-
-
-            ${routes.map(route => `
-
-                <div class="smart-alternative">
-
-                    <div>
-
-                        <strong>
-                            ${escapeHTML(route.location)}
-                        </strong>
-
-                        <span>
-                            ${route.components.length}
-                            composant(s)
-                        </span>
-
-                    </div>
-
-                </div>
-
-            `).join("")}
-
-        </details>
-    `;
-}
 // ==========================================
 // HEADER
 // ==========================================
@@ -527,39 +242,36 @@ function buildAlternativeRoutes(routes) {
 function buildHeader(name, category, image) {
 
     return `
-        <div class="result-top">
 
-            <div class="result-title">
+        <div class="result-header">
 
-                ${
-                    image
+            ${
+                image
                     ? `
                         <img
                             class="item-image"
-                            src="${escapeHTML(image)}"
+                            src="${image}"
                             alt="${escapeHTML(name)}"
                         >
                     `
                     : ""
-                }
+            }
 
-                <div>
+            <div>
 
-                    <span class="result-category">
-                        ${escapeHTML(category)}
-                    </span>
+                <span class="gps-label">
+                    GPS ACTIVE
+                </span>
 
-                    <h3>
-                        ${escapeHTML(name)}
-                    </h3>
+                <h3>
+                    ${escapeHTML(name)}
+                </h3>
 
-                </div>
+                <span class="result-category">
+                    ${escapeHTML(category)}
+                </span>
 
             </div>
-
-            <span class="recommended">
-                GPS ACTIVE
-            </span>
 
         </div>
     `;
@@ -599,27 +311,23 @@ function getDrops(item) {
 }
 
 
-// ==========================================
-// MEILLEUR DROP
-// ==========================================
-
 function chooseBestDrop(drops) {
 
     if (!drops.length) {
         return null;
     }
 
-    return [...drops].sort((a, b) => {
-
-        return getChance(b) - getChance(a);
-
-    })[0];
+    return [...drops].sort(
+        (a, b) =>
+            getChance(b) - getChance(a)
+    )[0];
 }
 
 
 function getChance(drop) {
 
-    const chance = Number(drop?.chance);
+    const chance =
+        Number(drop?.chance);
 
     if (!Number.isFinite(chance)) {
         return 0;
@@ -631,16 +339,12 @@ function getChance(drop) {
 
 function formatChance(chance) {
 
-    const value = Number(chance);
+    const value =
+        Number(chance);
 
     if (!Number.isFinite(value)) {
         return "Non précisée";
     }
-
-    /*
-      Certaines données utilisent 0.1 = 10 %,
-      d'autres peuvent déjà être exprimées en %.
-    */
 
     const percentage =
         value <= 1
@@ -652,7 +356,7 @@ function formatChance(chance) {
 
 
 // ==========================================
-// ROUTE GPS
+// ROUTE SIMPLE
 // ==========================================
 
 function buildRoute(drop) {
@@ -660,6 +364,7 @@ function buildRoute(drop) {
     if (!drop) {
 
         return `
+
             <div class="gps-route">
 
                 <span class="gps-label">
@@ -671,72 +376,45 @@ function buildRoute(drop) {
                 </h4>
 
                 <p>
-                    Cet objet existe dans la base,
-                    mais aucune destination exploitable
-                    n'est fournie directement.
+                    Aucun drop direct exploitable
+                    n'a été identifié.
                 </p>
 
             </div>
         `;
     }
 
-
     const location =
         drop.location ||
         drop.place ||
         drop.node ||
         drop.mission ||
-        "Localisation inconnue";
-
+        "Destination inconnue";
 
     return `
+
         <div class="gps-route">
 
-            <div class="gps-route-title">
-
-                <span class="gps-label">
-                    ROUTE GPS RECOMMANDÉE
-                </span>
-
-                <span class="best-badge">
-                    ★ MEILLEUR DROP DISPONIBLE
-                </span>
-
-            </div>
+            <span class="gps-label">
+                DESTINATION RECOMMANDÉE
+            </span>
 
             <h4>
                 ${escapeHTML(location)}
             </h4>
 
-            <div class="gps-stats">
+            <p>
+                Chance :
+                <strong>
+                    ${formatChance(getChance(drop))}
+                </strong>
 
-                <div>
-
-                    <span>
-                        CHANCE
-                    </span>
-
-                    <strong>
-                        ${formatChance(drop.chance)}
-                    </strong>
-
-                </div>
-
-                <div>
-
-                    <span>
-                        RARETÉ
-                    </span>
-
-                    <strong>
-                        ${escapeHTML(
-                            drop.rarity || "Non précisée"
-                        )}
-                    </strong>
-
-                </div>
-
-            </div>
+                ${
+                    drop.rarity
+                        ? ` • ${escapeHTML(drop.rarity)}`
+                        : ""
+                }
+            </p>
 
         </div>
     `;
@@ -744,7 +422,352 @@ function buildRoute(drop) {
 
 
 // ==========================================
-// LISTE DES DROPS
+// ROUTE INTELLIGENTE
+// ==========================================
+
+function buildSmartRoute(item, drops, components) {
+
+    const category = normalizeText(
+        item.category ||
+        item.type ||
+        item.productCategory ||
+        ""
+    );
+
+    const isWarframe =
+        category.includes("warframe");
+
+    if (!isWarframe) {
+
+        const bestDrop =
+            chooseBestDrop(drops);
+
+        return buildRoute(bestDrop);
+    }
+
+    return buildWarframeRoute(
+        components,
+        item.name
+    );
+}
+
+
+// ==========================================
+// ROUTE WARFRAME
+// ==========================================
+
+function buildWarframeRoute(
+    components,
+    itemName
+) {
+
+    if (!components.length) {
+
+        return `
+
+            <div class="gps-route">
+
+                <span class="gps-label">
+                    ROUTE GPS WARFRAME
+                </span>
+
+                <h4>
+                    Données de fabrication indisponibles
+                </h4>
+
+            </div>
+        `;
+    }
+
+
+    // Ignore les composants déjà obtenus
+
+    const remainingComponents =
+        components.filter(component => {
+
+            const name =
+                component.name ||
+                "Composant";
+
+            return !isComponentOwned(
+                itemName,
+                name
+            );
+        });
+
+
+    // Tout est obtenu
+
+    if (!remainingComponents.length) {
+
+        return `
+
+            <div class="smart-route">
+
+                <span class="gps-label">
+                    PROGRESSION
+                </span>
+
+                <h4>
+                    ✓ Tous les composants sont obtenus
+                </h4>
+
+                <p class="route-explanation">
+                    La route GPS est terminée pour
+                    ${escapeHTML(itemName)}.
+                </p>
+
+            </div>
+        `;
+    }
+
+
+    const destinations = {};
+
+
+    remainingComponents.forEach(component => {
+
+        if (!Array.isArray(component.drops)) {
+            return;
+        }
+
+
+        component.drops.forEach(drop => {
+
+            const location =
+                drop.location ||
+                drop.place ||
+                drop.node ||
+                drop.mission;
+
+            if (!location) {
+                return;
+            }
+
+
+            if (!destinations[location]) {
+
+                destinations[location] = {
+
+                    location: location,
+
+                    components: [],
+
+                    totalChance: 0
+                };
+            }
+
+
+            destinations[location]
+                .components
+                .push({
+
+                    name:
+                        component.name ||
+                        "Composant",
+
+                    chance:
+                        getChance(drop),
+
+                    rarity:
+                        drop.rarity ||
+                        ""
+                });
+
+
+            destinations[location]
+                .totalChance +=
+                getChance(drop);
+        });
+    });
+
+
+    const routes =
+        Object.values(destinations);
+
+
+    if (!routes.length) {
+
+        return `
+
+            <div class="gps-route">
+
+                <span class="gps-label">
+                    ROUTE GPS WARFRAME
+                </span>
+
+                <h4>
+                    Analyse des composants
+                </h4>
+
+                <p>
+                    Certains composants restants
+                    ne possèdent pas de mission
+                    directe exploitable.
+                </p>
+
+            </div>
+        `;
+    }
+
+
+    routes.sort((a, b) => {
+
+        const componentDifference =
+            b.components.length -
+            a.components.length;
+
+        if (componentDifference !== 0) {
+            return componentDifference;
+        }
+
+        return (
+            b.totalChance -
+            a.totalChance
+        );
+    });
+
+
+    const bestRoute =
+        routes[0];
+
+
+    return `
+
+        <div class="smart-route">
+
+            <div class="smart-route-header">
+
+                <div>
+
+                    <span class="gps-label">
+                        ROUTE GPS OPTIMISÉE
+                    </span>
+
+                    <h4>
+                        ${escapeHTML(bestRoute.location)}
+                    </h4>
+
+                </div>
+
+                <span class="route-badge">
+                    ★ ROUTE PRINCIPALE
+                </span>
+
+            </div>
+
+
+            <p class="route-explanation">
+
+                Cette destination permet
+                d'obtenir
+
+                <strong>
+                    ${bestRoute.components.length}
+                </strong>
+
+                composant(s) encore nécessaire(s).
+
+            </p>
+
+
+            <div class="route-components">
+
+                ${bestRoute.components.map(component => `
+
+                    <div class="route-component">
+
+                        <div>
+
+                            <span>
+                                COMPOSANT
+                            </span>
+
+                            <strong>
+                                ${escapeHTML(component.name)}
+                            </strong>
+
+                        </div>
+
+
+                        <div>
+
+                            <span>
+                                CHANCE
+                            </span>
+
+                            <strong>
+                                ${formatChance(component.chance)}
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                `).join("")}
+
+            </div>
+
+
+            ${
+                routes.length > 1
+                    ? buildAlternativeRoutes(
+                        routes.slice(1, 4)
+                    )
+                    : ""
+            }
+
+        </div>
+    `;
+}
+
+
+// ==========================================
+// ROUTES ALTERNATIVES
+// ==========================================
+
+function buildAlternativeRoutes(routes) {
+
+    if (!routes.length) {
+        return "";
+    }
+
+    return `
+
+        <details class="smart-alternatives">
+
+            <summary>
+                Voir les routes alternatives
+            </summary>
+
+            ${routes.map(route => `
+
+                <div class="smart-alternative">
+
+                    <div>
+
+                        <strong>
+                            ${escapeHTML(route.location)}
+                        </strong>
+
+                        <span>
+                            ${route.components.length}
+                            composant(s)
+                        </span>
+
+                    </div>
+
+                </div>
+
+            `).join("")}
+
+        </details>
+    `;
+}
+
+
+// ==========================================
+// AUTRES DESTINATIONS
 // ==========================================
 
 function buildDrops(drops) {
@@ -753,55 +776,47 @@ function buildDrops(drops) {
         return "";
     }
 
-    const sortedDrops = [...drops]
-        .sort(
-            (a, b) =>
-                getChance(b) - getChance(a)
-        )
-        .slice(0, 8);
+
+    const sorted =
+        [...drops]
+            .sort(
+                (a, b) =>
+                    getChance(b) -
+                    getChance(a)
+            )
+            .slice(0, 8);
 
 
     return `
+
         <div class="drops-section">
 
-            <span class="gps-label">
+            <h4>
                 AUTRES DESTINATIONS
-            </span>
+            </h4>
 
-            ${sortedDrops.map((drop, index) => {
+            ${sorted.map(drop => {
 
                 const location =
                     drop.location ||
                     drop.place ||
                     drop.node ||
                     drop.mission ||
-                    "Localisation inconnue";
+                    "Destination inconnue";
 
                 return `
+
                     <div class="drop-row">
 
-                        <div>
-
-                            <strong>
-                                ${index + 1}.
-                                ${escapeHTML(location)}
-                            </strong>
-
-                            ${
-                                drop.rarity
-                                ? `
-                                    <small>
-                                        ${escapeHTML(drop.rarity)}
-                                    </small>
-                                `
-                                : ""
-                            }
-
-                        </div>
-
                         <span>
-                            ${formatChance(drop.chance)}
+                            ${escapeHTML(location)}
                         </span>
+
+                        <strong>
+                            ${formatChance(
+                                getChance(drop)
+                            )}
+                        </strong>
 
                     </div>
                 `;
@@ -827,22 +842,27 @@ function getComponents(item) {
 }
 
 
-function buildComponents(components) {
+function buildComponents(
+    components,
+    itemName
+) {
 
     if (!components.length) {
         return "";
     }
 
+
     return `
+
         <div class="components-section">
 
-            <span class="gps-label">
+            <h4>
                 ROUTE DE FABRICATION
-            </span>
+            </h4>
 
-            <div class="component-route">
 
-                ${components.map((component, index) => {
+            ${components.map(
+                (component, index) => {
 
                     const name =
                         component.name ||
@@ -850,6 +870,7 @@ function buildComponents(components) {
 
                     const quantity =
                         component.itemCount ||
+                        component.quantity ||
                         component.count ||
                         1;
 
@@ -861,431 +882,405 @@ function buildComponents(components) {
                     const bestDrop =
                         chooseBestDrop(drops);
 
-                    const location =
-                        bestDrop
-                            ? (
-                                bestDrop.location ||
-                                bestDrop.place ||
-                                bestDrop.node ||
-                                bestDrop.mission ||
-                                "Localisation inconnue"
-                              )
-                            : null;
+                    const owned =
+                        isComponentOwned(
+                            itemName,
+                            name
+                        );
 
                     const image =
                         component.imageName
                             ? `https://cdn.warframestat.us/img/${component.imageName}`
                             : null;
 
-                    const owned =
-                        isComponentOwned(name);
 
-                    return `
-                        <div
-                            class="component-gps ${owned ? "component-owned" : ""}"
-                            data-component="${escapeHTML(name)}"
-                        >
+                    let destinationHTML = "";
 
-                            <div class="component-number">
-                                ${owned ? "✓" : String(index + 1).padStart(2, "0")}
+
+                    if (owned) {
+
+                        destinationHTML = `
+
+                            <div class="owned-message">
+
+                                ✓ Composant déjà obtenu —
+                                retiré de la route GPS.
+
                             </div>
+                        `;
 
-                            <div class="component-main">
+                    } else if (bestDrop) {
 
-                                <div class="component-header">
+                        const location =
+                            bestDrop.location ||
+                            bestDrop.place ||
+                            bestDrop.node ||
+                            bestDrop.mission ||
+                            "Destination inconnue";
+
+
+                        destinationHTML = `
+
+                            <div class="component-destination">
+
+                                <span>
+                                    DESTINATION RECOMMANDÉE
+                                </span>
+
+                                <strong>
+                                    ${escapeHTML(location)}
+                                </strong>
+
+                                <small>
+                                    Chance :
+                                    ${formatChance(
+                                        getChance(bestDrop)
+                                    )}
 
                                     ${
-                                        image
-                                        ? `
-                                            <img
-                                                class="component-image"
-                                                src="${escapeHTML(image)}"
-                                                alt="${escapeHTML(name)}"
-                                            >
-                                        `
-                                        : ""
+                                        bestDrop.rarity
+                                            ? ` • ${escapeHTML(bestDrop.rarity)}`
+                                            : ""
                                     }
+                                </small>
 
-                                    <div class="component-name">
+                            </div>
+                        `;
 
-                                        <strong>
-                                            ${escapeHTML(name)}
-                                        </strong>
+                    } else {
 
-                                        <span>
-                                            Quantité : ${quantity}
-                                        </span>
+                        destinationHTML = `
 
-                                    </div>
+                            <div class="component-destination">
 
-                                    <label class="owned-toggle">
+                                <span>
+                                    ACQUISITION
+                                </span>
 
-                                        <input
-                                            type="checkbox"
-                                            ${owned ? "checked" : ""}
-                                            onchange="toggleComponent(
-                                                '${escapeJS(name)}',
-                                                this.checked
-                                            )"
-                                        >
+                                <strong>
+                                    Pas de drop direct identifié
+                                </strong>
 
-                                        <span>
-                                            Je l'ai
-                                        </span>
+                            </div>
+                        `;
+                    }
 
-                                    </label>
+
+                    const alternatives =
+                        !owned && drops.length > 1
+                            ? buildComponentAlternatives(
+                                drops
+                            )
+                            : "";
+
+
+                    return `
+
+                        <div class="
+                            component-route
+                            ${owned ? "component-owned" : ""}
+                        ">
+
+                            <div class="component-gps">
+
+                                <div class="component-number">
+
+                                    ${
+                                        owned
+                                            ? "✓"
+                                            : index + 1
+                                    }
 
                                 </div>
 
 
-                                ${
-                                    owned
-                                    ? `
-                                        <div class="owned-message">
-                                            ✓ Composant déjà obtenu —
-                                            retiré de la route GPS.
-                                        </div>
-                                    `
-                                    :
-                                    bestDrop
-                                    ? `
-                                        <div class="component-destination">
+                                <div class="component-main">
 
-                                            <span>
-                                                DESTINATION RECOMMANDÉE
-                                            </span>
+                                    <div class="component-header">
 
-                                            <strong>
-                                                ${escapeHTML(location)}
-                                            </strong>
+                                        ${
+                                            image
+                                                ? `
+                                                    <img
+                                                        class="component-image"
+                                                        src="${image}"
+                                                        alt="${escapeHTML(name)}"
+                                                    >
+                                                `
+                                                : ""
+                                        }
 
-                                            <small>
-                                                Chance :
-                                                ${formatChance(bestDrop.chance)}
 
-                                                ${
-                                                    bestDrop.rarity
-                                                    ? ` • ${escapeHTML(bestDrop.rarity)}`
-                                                    : ""
-                                                }
-                                            </small>
-
-                                        </div>
-                                    `
-                                    : `
-                                        <div class="component-destination unavailable">
-
-                                            <span>
-                                                ACQUISITION
-                                            </span>
+                                        <div>
 
                                             <strong>
-                                                Pas de drop direct identifié
+                                                ${escapeHTML(name)}
                                             </strong>
 
+                                            <span>
+                                                Quantité : ${quantity}
+                                            </span>
+
                                         </div>
-                                    `
-                                }
+
+
+                                        <label class="owned-toggle">
+
+                                            <input
+                                                type="checkbox"
+                                                ${owned ? "checked" : ""}
+                                                onchange="toggleComponent(
+                                                    '${escapeJS(itemName)}',
+                                                    '${escapeJS(name)}',
+                                                    this.checked
+                                                )"
+                                            >
+
+                                            <span>
+                                                Je l'ai
+                                            </span>
+
+                                        </label>
+
+                                    </div>
+
+
+                                    ${destinationHTML}
+
+                                    ${alternatives}
+
+                                </div>
 
                             </div>
 
                         </div>
                     `;
 
-                }).join("")}
-
-            </div>
+                }
+            ).join("")}
 
         </div>
-    `; }
+    `;
+}
+
+
+// ==========================================
+// ALTERNATIVES COMPOSANTS
+// ==========================================
+
+function buildComponentAlternatives(drops) {
+
+    const sorted =
+        [...drops].sort(
+            (a, b) =>
+                getChance(b) -
+                getChance(a)
+        );
+
+
+    return `
+
+        <details class="component-alternatives">
+
+            <summary>
+                Voir les autres destinations
+            </summary>
+
+
+            ${sorted.slice(1, 6).map(drop => {
+
+                const location =
+                    drop.location ||
+                    drop.place ||
+                    drop.node ||
+                    drop.mission ||
+                    "Destination inconnue";
+
+                return `
+
+                    <div class="alternative-row">
+
+                        <span>
+                            ${escapeHTML(location)}
+                        </span>
+
+                        <strong>
+                            ${formatChance(
+                                getChance(drop)
+                            )}
+                        </strong>
+
+                    </div>
+                `;
+
+            }).join("")}
+
+        </details>
+    `;
+}
+
+
+// ==========================================
+// CONSEIL GPS
+// ==========================================
+
+function buildGPSAdvice(
+    item,
+    drops,
+    components
+) {
+
+    if (components.length) {
+
+        return `
+
+            <div class="gps-advice">
+
+                <span class="gps-label">
+                    ANALYSE GPS
+                </span>
+
+                <p>
+                    Warframe GPS analyse les
+                    composants et leurs destinations
+                    afin de proposer une route de farm.
+                    Les composants cochés comme obtenus
+                    sont retirés automatiquement.
+                </p>
+
+            </div>
+        `;
+    }
+
+
+    if (drops.length) {
+
+        return `
+
+            <div class="gps-advice">
+
+                <span class="gps-label">
+                    ANALYSE GPS
+                </span>
+
+                <p>
+                    La destination affichée est basée
+                    sur les données de drop disponibles.
+                    Une probabilité plus élevée ne
+                    signifie pas toujours que la mission
+                    est la plus rapide en pratique.
+                </p>
+
+            </div>
+        `;
+    }
+
+
+    return "";
+}
+
+
 // ==========================================
 // PROGRESSION DU JOUEUR
 // ==========================================
 
 function getOwnedComponents() {
+
     try {
+
         return JSON.parse(
-            localStorage.getItem("warframeGPS_ownedComponents")
-        ) || [];
+            localStorage.getItem(
+                "warframeGPS_ownedComponents_v2"
+            )
+        ) || {};
+
     } catch {
-        return [];
+
+        return {};
     }
 }
 
-function isComponentOwned(name) {
-    const owned = getOwnedComponents();
-    return owned.includes(normalizeText(name));
+
+function componentStorageKey(
+    itemName,
+    componentName
+) {
+
+    return (
+        normalizeText(itemName) +
+        "::" +
+        normalizeText(componentName)
+    );
 }
 
-function toggleComponent(name, checked) {
-    let owned = getOwnedComponents();
-    const normalizedName = normalizeText(name);
+
+function isComponentOwned(
+    itemName,
+    componentName
+) {
+
+    const owned =
+        getOwnedComponents();
+
+    const key =
+        componentStorageKey(
+            itemName,
+            componentName
+        );
+
+    return owned[key] === true;
+}
+
+
+function toggleComponent(
+    itemName,
+    componentName,
+    checked
+) {
+
+    const owned =
+        getOwnedComponents();
+
+    const key =
+        componentStorageKey(
+            itemName,
+            componentName
+        );
+
 
     if (checked) {
-        if (!owned.includes(normalizedName)) {
-            owned.push(normalizedName);
-        }
+
+        owned[key] = true;
+
     } else {
-        owned = owned.filter(
-            component => component !== normalizedName
-        );
+
+        delete owned[key];
     }
 
+
     localStorage.setItem(
-        "warframeGPS_ownedComponents",
+        "warframeGPS_ownedComponents_v2",
         JSON.stringify(owned)
     );
 
-    searchItem();
-}
-}
 
-    if (!components.length) {
-        return "";
+    // Recalcule immédiatement la page
+    // sans refaire une requête API.
+
+    if (currentItem) {
+        displayGPS(currentItem);
     }
-
-    return `
-        <div class="components-section">
-
-            <span class="gps-label">
-                ROUTE DE FABRICATION
-            </span>
-
-            <div class="component-route">
-
-                ${components.map((component, index) => {
-
-                    const name =
-                        component.name ||
-                        "Composant";
-
-                    const quantity =
-                        component.itemCount ||
-                        component.count ||
-                        1;
-
-                    const drops =
-                        Array.isArray(component.drops)
-                            ? component.drops
-                            : [];
-
-                    const bestDrop =
-                        chooseBestDrop(drops);
-
-                    const location =
-                        bestDrop
-                            ? (
-                                bestDrop.location ||
-                                bestDrop.place ||
-                                bestDrop.node ||
-                                bestDrop.mission ||
-                                "Localisation inconnue"
-                              )
-                            : null;
-
-                    const image =
-                        component.imageName
-                            ? `https://cdn.warframestat.us/img/${component.imageName}`
-                            : null;
-
-                    return `
-                        <div class="component-gps">
-
-                            <div class="component-number">
-                                ${String(index + 1).padStart(2, "0")}
-                            </div>
-
-                            <div class="component-main">
-
-                                <div class="component-header">
-
-                                    ${
-                                        image
-                                        ? `
-                                            <img
-                                                class="component-image"
-                                                src="${escapeHTML(image)}"
-                                                alt="${escapeHTML(name)}"
-                                            >
-                                        `
-                                        : ""
-                                    }
-
-                                    <div>
-                                        <strong>
-                                            ${escapeHTML(name)}
-                                        </strong>
-
-                                        <span>
-                                            Quantité : ${quantity}
-                                        </span>
-                                    </div>
-
-                                </div>
-
-
-                                ${
-                                    bestDrop
-                                    ? `
-                                        <div class="component-destination">
-
-                                            <span>
-                                                DESTINATION RECOMMANDÉE
-                                            </span>
-
-                                            <strong>
-                                                ${escapeHTML(location)}
-                                            </strong>
-
-                                            <small>
-                                                Chance :
-                                                ${formatChance(bestDrop.chance)}
-
-                                                ${
-                                                    bestDrop.rarity
-                                                    ? ` • ${escapeHTML(bestDrop.rarity)}`
-                                                    : ""
-                                                }
-                                            </small>
-
-                                        </div>
-                                    `
-                                    : `
-                                        <div class="component-destination unavailable">
-
-                                            <span>
-                                                ACQUISITION
-                                            </span>
-
-                                            <strong>
-                                                Pas de drop direct identifié
-                                            </strong>
-
-                                        </div>
-                                    `
-                                }
-
-
-                                ${
-                                    drops.length > 1
-                                    ? `
-                                        <details class="component-alternatives">
-
-                                            <summary>
-                                                Voir ${drops.length} sources
-                                            </summary>
-
-                                            ${[...drops]
-                                                .sort(
-                                                    (a, b) =>
-                                                        getChance(b) -
-                                                        getChance(a)
-                                                )
-                                                .slice(0, 6)
-                                                .map(drop => {
-
-                                                    const dropLocation =
-                                                        drop.location ||
-                                                        drop.place ||
-                                                        drop.node ||
-                                                        drop.mission ||
-                                                        "Localisation inconnue";
-
-                                                    return `
-                                                        <div class="alternative-row">
-
-                                                            <span>
-                                                                ${escapeHTML(dropLocation)}
-                                                            </span>
-
-                                                            <strong>
-                                                                ${formatChance(drop.chance)}
-                                                            </strong>
-
-                                                        </div>
-                                                    `;
-
-                                                }).join("")}
-
-                                        </details>
-                                    `
-                                    : ""
-                                }
-
-                            </div>
-
-                        </div>
-                    `;
-
-                }).join("")}
-
-            </div>
-
-        </div>
-    `;
-}
-
-   
-
-
-// ==========================================
-// CONSEILS GPS
-// ==========================================
-
-function buildGPSAdvice(item, drops, components) {
-
-    let text;
-
-    if (drops.length > 1) {
-
-        text =
-            `Warframe GPS a trouvé ${drops.length} sources possibles. ` +
-            `La route affichée en premier possède la meilleure ` +
-            `probabilité numérique disponible dans les données.`;
-
-    } else if (drops.length === 1) {
-
-        text =
-            "Une source directe a été trouvée pour cet objet.";
-
-    } else if (components.length) {
-
-        text =
-            "Aucun drop direct n'est disponible, mais les composants " +
-            "nécessaires ont été identifiés. Clique sur un composant " +
-            "pour poursuivre la route GPS.";
-
-    } else {
-
-        text =
-            "Les données disponibles ne permettent pas encore de " +
-            "calculer automatiquement une route de farm fiable.";
-    }
-
-
-    return `
-        <div class="gps-info">
-
-            <strong>
-                ANALYSE GPS
-            </strong>
-
-            <p>
-                ${escapeHTML(text)}
-            </p>
-
-        </div>
-    `;
 }
 
 
 // ==========================================
-// RECHERCHE D'UN COMPOSANT
+// RECHERCHE DE COMPOSANT
 // ==========================================
 
 function searchComponent(name) {
 
-    searchInput.value = name;
+    searchInput.value =
+        name;
 
     searchItem();
 
@@ -1303,8 +1298,13 @@ function searchComponent(name) {
 function showLoading(message) {
 
     searchResults.innerHTML = `
-        <div class="result-card loading">
-            ${escapeHTML(message)}
+
+        <div class="result-card">
+
+            <strong>
+                ${escapeHTML(message)}
+            </strong>
+
         </div>
     `;
 }
@@ -1313,8 +1313,13 @@ function showLoading(message) {
 function showMessage(message) {
 
     searchResults.innerHTML = `
+
         <div class="result-card">
-            ${message}
+
+            <strong>
+                ${escapeHTML(message)}
+            </strong>
+
         </div>
     `;
 }
@@ -1330,14 +1335,16 @@ function selectCategory(category) {
 
 
 // ==========================================
-// SECURITE
+// SÉCURITÉ HTML
 // ==========================================
 
 function escapeHTML(value) {
 
-    const div = document.createElement("div");
+    const div =
+        document.createElement("div");
 
-    div.textContent = String(value);
+    div.textContent =
+        String(value);
 
     return div.innerHTML;
 }
@@ -1350,130 +1357,29 @@ function escapeJS(value) {
         .replace(/'/g, "\\'");
 }
 
+
 // ==========================================
-// PROGRESSION DU JOUEUR
+// ÉVÉNEMENTS
 // ==========================================
 
-function getOwnedComponents() {
+if (searchButton) {
 
-    try {
-
-        return JSON.parse(
-            localStorage.getItem(
-                "warframeGPS_ownedComponents"
-            )
-        ) || [];
-
-    } catch {
-
-        return [];
-    }
-}
-
-
-function isComponentOwned(name) {
-
-    const owned =
-        getOwnedComponents();
-
-    return owned.includes(
-        normalizeText(name)
+    searchButton.addEventListener(
+        "click",
+        searchItem
     );
 }
 
 
-function toggleComponent(name, checked) {
+if (searchInput) {
 
-    let owned =
-        getOwnedComponents();
+    searchInput.addEventListener(
+        "keydown",
+        event => {
 
-    const normalizedName =
-        normalizeText(name);
-
-
-    if (checked) {
-
-        if (!owned.includes(normalizedName)) {
-            owned.push(normalizedName);
+            if (event.key === "Enter") {
+                searchItem();
+            }
         }
-
-    } else {
-
-        owned =
-            owned.filter(
-                component =>
-                    component !== normalizedName
-            );
-    }
-
-
-    localStorage.setItem(
-        "warframeGPS_ownedComponents",
-        JSON.stringify(owned)
     );
-
-
-    // Relance la recherche actuelle
-    // pour actualiser automatiquement le GPS.
-
-    searchItem();
-}
-// ==========================================
-// EVENEMENTS
-// ==========================================
-
-searchButton.addEventListener(
-    "click",
-    searchItem
-);
-
-
-searchInput.addEventListener(
-    "keydown",
-    event => {
-
-        if (event.key === "Enter") {
-            searchItem();
-        }
-      `;
-    }
-// ==========================================
-// PROGRESSION DU JOUEUR
-// ==========================================
-
-function getOwnedComponents() {
-    try {
-        return JSON.parse(
-            localStorage.getItem("warframeGPS_ownedComponents")
-        ) || [];
-    } catch {
-        return [];
-    }
-}
-
-function isComponentOwned(name) {
-    const owned = getOwnedComponents();
-    return owned.includes(normalizeText(name));
-}
-
-function toggleComponent(name, checked) {
-    let owned = getOwnedComponents();
-    const normalizedName = normalizeText(name);
-
-    if (checked) {
-        if (!owned.includes(normalizedName)) {
-            owned.push(normalizedName);
-        }
-    } else {
-        owned = owned.filter(
-            component => component !== normalizedName
-        );
-    }
-
-    localStorage.setItem(
-        "warframeGPS_ownedComponents",
-        JSON.stringify(owned)
-    );
-
-    searchItem();
 }

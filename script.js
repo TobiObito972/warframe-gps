@@ -997,7 +997,47 @@ function buildComponents(components) {
             </div>
 
         </div>
-    `;
+    `; }
+// ==========================================
+// PROGRESSION DU JOUEUR
+// ==========================================
+
+function getOwnedComponents() {
+    try {
+        return JSON.parse(
+            localStorage.getItem("warframeGPS_ownedComponents")
+        ) || [];
+    } catch {
+        return [];
+    }
+}
+
+function isComponentOwned(name) {
+    const owned = getOwnedComponents();
+    return owned.includes(normalizeText(name));
+}
+
+function toggleComponent(name, checked) {
+    let owned = getOwnedComponents();
+    const normalizedName = normalizeText(name);
+
+    if (checked) {
+        if (!owned.includes(normalizedName)) {
+            owned.push(normalizedName);
+        }
+    } else {
+        owned = owned.filter(
+            component => component !== normalizedName
+        );
+    }
+
+    localStorage.setItem(
+        "warframeGPS_ownedComponents",
+        JSON.stringify(owned)
+    );
+
+    searchItem();
+}
 }
 
     if (!components.length) {

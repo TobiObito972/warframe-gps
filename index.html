@@ -1,14 +1,225 @@
- <footer>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        <p>
-            Warframe GPS — Projet communautaire indépendant.
+  <title>Warframe GPS</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <header class="navbar">
+    <div class="logo">
+      WARFRAME <span>GPS</span>
+    </div>
+
+    <nav>
+      <a href="#accueil">Accueil</a>
+      <a href="#farm">Farm</a>
+      <a href="#ressources">Ressources</a>
+      <a href="#warframes">Warframes</a>
+      <a href="#armes">Armes</a>
+    </nav>
+  </header>
+
+
+  <main>
+
+    <!-- ACCUEIL -->
+
+    <section id="accueil" class="hero">
+
+      <div class="hero-content">
+
+        <p class="tag">
+          GUIDE COMMUNAUTAIRE WARFRAME
         </p>
 
-    </footer>
+        <h1>
+          Trouve ce que tu cherches.
+          <span>Farm plus intelligemment.</span>
+        </h1>
+
+        <p class="description">
+          Warframe GPS t'aide à trouver rapidement
+          où obtenir une ressource, un Warframe,
+          une arme ou un mod.
+        </p>
 
 
-    <script src="script.js"></script>
+        <!-- RECHERCHE -->
+
+        <div class="search-container">
+
+          <input
+            id="searchInput"
+            type="text"
+            placeholder="Ex : Tellurium, Neurodes, Gauss..."
+          >
+
+          <button id="searchButton">
+            Rechercher
+          </button>
+
+        </div>
+
+        <div id="searchResults"></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- FARM -->
+
+    <section id="farm" class="section">
+
+      <h2>Que veux-tu farmer ?</h2>
+
+      <p class="section-description">
+        Choisis une catégorie pour commencer.
+      </p>
+
+
+      <div class="cards">
+
+        <div class="card">
+          <div class="icon">◈</div>
+
+          <h3>Ressources</h3>
+
+          <p>
+            Trouve les meilleurs endroits pour farmer
+            les ressources dont tu as besoin.
+          </p>
+
+          <button onclick="selectCategory('ressources')">
+            Explorer
+          </button>
+        </div>
+
+
+        <div class="card">
+          <div class="icon">⬡</div>
+
+          <h3>Warframes</h3>
+
+          <p>
+            Découvre où obtenir les composants
+            nécessaires à chaque Warframe.
+          </p>
+
+          <button onclick="selectCategory('warframes')">
+            Explorer
+          </button>
+        </div>
+
+
+        <div class="card">
+          <div class="icon">✦</div>
+
+          <h3>Armes</h3>
+
+          <p>
+            Localise les plans et composants
+            nécessaires pour fabriquer tes armes.
+          </p>
+
+          <button onclick="selectCategory('armes')">
+            Explorer
+          </button>
+        </div>
+
+
+        <div class="card">
+          <div class="icon">◇</div>
+
+          <h3>Mods</h3>
+
+          <p>
+            Découvre quelles missions et quels ennemis
+            peuvent donner les mods recherchés.
+          </p>
+
+          <button onclick="selectCategory('mods')">
+            Explorer
+          </button>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- COMMENT ÇA MARCHE -->
+
+    <section class="section how">
+
+      <h2>Comment fonctionne Warframe GPS ?</h2>
+
+
+      <div class="steps">
+
+        <div class="step">
+          <span>01</span>
+
+          <h3>Recherche</h3>
+
+          <p>
+            Entre l'objet ou la ressource
+            que tu souhaites obtenir.
+          </p>
+        </div>
+
+
+        <div class="step">
+          <span>02</span>
+
+          <h3>Localisation</h3>
+
+          <p>
+            Warframe GPS identifie les missions
+            et endroits correspondants.
+          </p>
+        </div>
+
+
+        <div class="step">
+          <span>03</span>
+
+          <h3>Optimisation</h3>
+
+          <p>
+            Compare les options et choisis
+            la méthode de farm la plus intéressante.
+          </p>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <footer>
+
+    <p>
+      Warframe GPS — Projet communautaire indépendant.
+    </p>
+
+    <p class="disclaimer">
+      Warframe est une marque de Digital Extremes.
+      Ce site n'est pas affilié à Digital Extremes.
+    </p>
+
+  </footer>
+
+
+  <script src="script.js"></script>
 
 </body>
-
 </html>

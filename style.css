@@ -952,3 +952,164 @@ footer {
         height: 35px;
     }
 }
+/* =================================
+   WARFRAME GPS — SMART ROUTE V5
+================================= */
+
+.smart-route {
+    margin: 28px 0 32px;
+    padding: 28px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(88,217,255,.10),
+            rgba(88,217,255,.025)
+        );
+
+    border: 1px solid rgba(88,217,255,.3);
+    border-left: 4px solid #58d9ff;
+
+    border-radius: 9px;
+}
+
+.smart-route-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.smart-route h4 {
+    font-size: 25px;
+    margin-top: 8px;
+}
+
+.route-badge {
+    padding: 7px 10px;
+
+    border: 1px solid rgba(88,217,255,.35);
+    border-radius: 5px;
+
+    color: #58d9ff;
+
+    font-size: 9px;
+    letter-spacing: 1px;
+}
+
+.route-explanation {
+    color: #91a5b0;
+
+    margin: 20px 0;
+
+    line-height: 1.6;
+}
+
+.route-explanation strong {
+    color: #58d9ff;
+}
+
+.route-components {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, 1fr);
+
+    gap: 8px;
+}
+
+.route-component {
+    display: flex;
+
+    justify-content: space-between;
+    align-items: center;
+
+    gap: 20px;
+
+    padding: 15px;
+
+    background: rgba(0,0,0,.2);
+
+    border: 1px solid rgba(255,255,255,.04);
+
+    border-radius: 6px;
+}
+
+.route-component span {
+    display: block;
+
+    color: #637985;
+
+    font-size: 8px;
+
+    letter-spacing: 2px;
+
+    margin-bottom: 5px;
+}
+
+.route-component strong {
+    font-size: 13px;
+}
+
+.route-component > div:last-child {
+    text-align: right;
+}
+
+.route-component > div:last-child strong {
+    color: #58d9ff;
+}
+
+.smart-alternatives {
+    margin-top: 20px;
+
+    border-top:
+        1px solid rgba(88,217,255,.12);
+
+    padding-top: 15px;
+}
+
+.smart-alternatives summary {
+    cursor: pointer;
+
+    color: #58d9ff;
+
+    font-size: 11px;
+}
+
+.smart-alternative {
+    padding: 12px;
+
+    margin-top: 7px;
+
+    background: rgba(0,0,0,.15);
+
+    border-radius: 5px;
+}
+
+.smart-alternative strong {
+    display: block;
+
+    font-size: 12px;
+}
+
+.smart-alternative span {
+    display: block;
+
+    color: #71838f;
+
+    font-size: 10px;
+
+    margin-top: 3px;
+}
+
+
+@media(max-width:550px) {
+
+    .smart-route-header {
+        flex-direction: column;
+    }
+
+    .route-components {
+        grid-template-columns: 1fr;
+    }
+}

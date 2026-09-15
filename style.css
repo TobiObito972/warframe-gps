@@ -1212,3 +1212,30 @@ footer {
         width: 100%;
     }
 }
+/* EXPLICATION GPS */
+
+.gps-explanation {
+    margin-top: 18px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(88,217,255,.12);
+}
+
+.gps-explanation summary {
+    cursor: pointer;
+    color: #58d9ff;
+    font-size: 11px;
+    letter-spacing: .5px;
+}
+
+.gps-explanation-content {
+    margin-top: 13px;
+    padding: 14px;
+    background: rgba(0,0,0,.18);
+    border-radius: 6px;
+}
+
+.gps-explanation-content p {
+    margin: 6px 0;
+    color: #91a5b0;
+    font-size: 11px;
+}

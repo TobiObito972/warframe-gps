@@ -1,80 +1,183 @@
-const database = [
-    {
-        name: "Tellurium",
-        category: "Ressource",
-        planet: "Uranus",
-        mission: "Ophelia",
-        type: "Survie",
-        method: "Élimine les ennemis et reste suffisamment longtemps dans la mission pour augmenter tes chances.",
-        tip: "Une Warframe orientée farm peut améliorer le rendement."
-    },
-
-    {
-        name: "Neurodes",
-        category: "Ressource",
-        planet: "Terre",
-        mission: "Mariana",
-        type: "Extermination",
-        method: "Explore la mission et détruis les conteneurs tout en éliminant les ennemis.",
-        tip: "Utilise un mod de radar de butin pour repérer plus facilement les ressources."
-    },
-
-    {
-        name: "Gauss",
-        category: "Warframe",
-        planet: "Sedna",
-        mission: "Kappa",
-        type: "Perturbation",
-        method: "Complète les conduits de Perturbation pour obtenir ses composants.",
-        tip: "Une escouade efficace permet d'enchaîner les rotations plus rapidement."
-    }
-];
+const API_URL = "https://api.warframestat.us/items/search/";
 
 const searchInput = document.getElementById("searchInput");
 const searchButton = document.getElementById("searchButton");
 const searchResults = document.getElementById("searchResults");
 
 
-function searchItem() {
+// ==============================
+// RECHERCHE
+// ==============================
 
-    const query = searchInput.value
-        .trim()
-        .toLowerCase();
+async function searchItem() {
+
+    const query = searchInput.value.trim();
 
     if (!query) {
-
-        searchResults.innerHTML = `
-            <div class="result-card">
-                Entre le nom d'une ressource,
-                d'un Warframe, d'une arme ou d'un mod.
-            </div>
-        `;
-
+        showMessage("Entre le nom d'un objet à rechercher.");
         return;
     }
 
+    showLoading();
 
-    const result = database.find(item =>
-        item.name.toLowerCase().includes(query)
-    );
+    try {
 
+        const response = await fetch(
+            API_URL + encodeURIComponent(query)
+        );
 
-    if (!result) {
+        if (!response.ok) {
+            throw new Error("Erreur API");
+        }
+
+        const data = await response.json();
+
+        let items = [];
+
+        if (Array.isArray(data)) {
+            items = data;
+        } else if (data && Array.isArray(data.items)) {
+            items = data.items;
+        } else if (data) {
+            items = [data];
+        }
+
+        if (items.length === 0) {
+            showMessage(
+                `Aucun résultat trouvé pour "${escapeHTML(query)}".`
+            );
+            return;
+        }
+
+        // On cherche d'abord une correspondance exacte
+        const exactItem = items.find(item =>
+            item.name &&
+            item.name.toLowerCase() === query.toLowerCase()
+        );
+
+        const item = exactItem || items[0];
+
+        displayItem(item);
+
+    } catch (error) {
+
+        console.error(error);
 
         searchResults.innerHTML = `
             <div class="result-card">
 
-                <strong>Aucun résultat trouvé</strong>
+                <strong>
+                    Impossible de contacter la base Warframe.
+                </strong>
 
                 <p>
-                    "${escapeHTML(searchInput.value)}"
-                    n'est pas encore présent dans notre base.
+                    Réessaie dans quelques instants.
                 </p>
 
             </div>
         `;
+    }
+}
 
-        return;
+
+// ==============================
+// AFFICHAGE
+// ==============================
+
+function displayItem(item) {
+
+    const name =
+        item.name ||
+        "Objet inconnu";
+
+    const category =
+        item.category ||
+        item.type ||
+        "Objet Warframe";
+
+    const description =
+        item.description ||
+        "Aucune description disponible.";
+
+    const image = item.imageName
+        ? `https://cdn.warframestat.us/img/${item.imageName}`
+        : null;
+
+
+    let dropsHTML = "";
+
+    if (
+        Array.isArray(item.drops) &&
+        item.drops.length > 0
+    ) {
+
+        const drops = item.drops.slice(0, 5);
+
+        dropsHTML = `
+            <div class="drops-section">
+
+                <span class="gps-label">
+                    LOCALISATIONS / DROPS
+                </span>
+
+                ${drops.map(drop => {
+
+                    const location =
+                        drop.location ||
+                        "Localisation inconnue";
+
+                    const chance =
+                        typeof drop.chance === "number"
+                            ? `${(drop.chance * 100).toFixed(2)} %`
+                            : "Chance inconnue";
+
+                    const rarity =
+                        drop.rarity ||
+                        "";
+
+                    return `
+                        <div class="drop-row">
+
+                            <div>
+                                <strong>
+                                    ${escapeHTML(location)}
+                                </strong>
+
+                                ${
+                                    rarity
+                                    ? `<small>${escapeHTML(rarity)}</small>`
+                                    : ""
+                                }
+                            </div>
+
+                            <span>
+                                ${escapeHTML(chance)}
+                            </span>
+
+                        </div>
+                    `;
+
+                }).join("")}
+
+            </div>
+        `;
+
+    } else {
+
+        dropsHTML = `
+            <div class="drops-section">
+
+                <span class="gps-label">
+                    LOCALISATION
+                </span>
+
+                <p class="no-drop">
+                    Aucune donnée de drop directe disponible
+                    pour cet objet.
+                </p>
+
+            </div>
+        `;
     }
 
 
@@ -83,58 +186,61 @@ function searchItem() {
 
             <div class="result-top">
 
-                <div>
-                    <span class="result-category">
-                        ${result.category}
-                    </span>
+                <div class="result-title">
 
-                    <h3>
-                        ${result.name}
-                    </h3>
+                    ${
+                        image
+                        ? `
+                        <img
+                            class="item-image"
+                            src="${image}"
+                            alt="${escapeHTML(name)}"
+                        >
+                        `
+                        : ""
+                    }
+
+                    <div>
+
+                        <span class="result-category">
+                            ${escapeHTML(category)}
+                        </span>
+
+                        <h3>
+                            ${escapeHTML(name)}
+                        </h3>
+
+                    </div>
+
                 </div>
 
+
                 <span class="recommended">
-                    RECOMMANDÉ
+                    WARFRAME GPS
                 </span>
 
             </div>
 
 
-            <div class="location">
-
-                <div>
-                    <span>PLANÈTE</span>
-                    <strong>${result.planet}</strong>
-                </div>
-
-                <div>
-                    <span>MISSION</span>
-                    <strong>${result.mission}</strong>
-                </div>
-
-                <div>
-                    <span>TYPE</span>
-                    <strong>${result.type}</strong>
-                </div>
-
-            </div>
+            <p class="item-description">
+                ${escapeHTML(description)}
+            </p>
 
 
-            <div class="farm-method">
+            ${dropsHTML}
 
-                <span>MÉTHODE DE FARM</span>
+
+            <div class="gps-info">
+
+                <strong>
+                    GPS
+                </strong>
 
                 <p>
-                    ${result.method}
+                    Nous allons prochainement utiliser
+                    ces données pour calculer automatiquement
+                    la meilleure route de farm.
                 </p>
-
-            </div>
-
-
-            <div class="farm-tip">
-
-                <strong>Conseil :</strong>
-                ${result.tip}
 
             </div>
 
@@ -143,26 +249,56 @@ function searchItem() {
 }
 
 
-function selectCategory(category) {
+// ==============================
+// INTERFACE
+// ==============================
 
-    document
-        .getElementById("searchInput")
-        .focus();
+function showLoading() {
 
-    searchInput.placeholder =
-        "Recherche dans : " + category;
+    searchResults.innerHTML = `
+        <div class="result-card loading">
+            Recherche dans la base Warframe...
+        </div>
+    `;
 }
 
 
-function escapeHTML(text) {
+function showMessage(message) {
+
+    searchResults.innerHTML = `
+        <div class="result-card">
+            ${message}
+        </div>
+    `;
+}
+
+
+function selectCategory(category) {
+
+    searchInput.focus();
+
+    searchInput.placeholder =
+        `Recherche : ${category}`;
+}
+
+
+// ==============================
+// SECURITE HTML
+// ==============================
+
+function escapeHTML(value) {
 
     const div = document.createElement("div");
 
-    div.textContent = text;
+    div.textContent = String(value);
 
     return div.innerHTML;
 }
 
+
+// ==============================
+// EVENEMENTS
+// ==============================
 
 searchButton.addEventListener(
     "click",
@@ -172,7 +308,7 @@ searchButton.addEventListener(
 
 searchInput.addEventListener(
     "keydown",
-    function(event) {
+    event => {
 
         if (event.key === "Enter") {
             searchItem();

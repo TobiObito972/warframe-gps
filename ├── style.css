@@ -541,3 +541,136 @@ footer {
         gap: 10px;
     }
 }
+/* ================================
+   WARFRAME GPS — RESULTATS API
+================================ */
+
+.result-title {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.item-image {
+    width: 75px;
+    height: 75px;
+
+    object-fit: contain;
+
+    background: rgba(255,255,255,.03);
+
+    border: 1px solid rgba(88,217,255,.15);
+
+    border-radius: 8px;
+
+    padding: 5px;
+}
+
+.item-description {
+    color: #91a1ad;
+
+    line-height: 1.6;
+
+    margin-bottom: 25px;
+}
+
+.drops-section {
+    margin-top: 20px;
+}
+
+.gps-label {
+    display: block;
+
+    color: #58d9ff;
+
+    font-size: 10px;
+
+    letter-spacing: 2px;
+
+    margin-bottom: 12px;
+}
+
+.drop-row {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 13px 15px;
+
+    margin-bottom: 7px;
+
+    background: rgba(255,255,255,.03);
+
+    border-left: 2px solid #58d9ff;
+
+    border-radius: 4px;
+}
+
+.drop-row strong {
+    display: block;
+
+    font-size: 13px;
+}
+
+.drop-row small {
+    display: block;
+
+    color: #71838f;
+
+    margin-top: 4px;
+}
+
+.drop-row > span {
+    color: #58d9ff;
+
+    font-weight: bold;
+
+    font-size: 12px;
+}
+
+.no-drop {
+    color: #71838f;
+
+    padding: 15px;
+
+    background: rgba(255,255,255,.025);
+
+    border-radius: 5px;
+}
+
+.gps-info {
+    margin-top: 25px;
+
+    padding: 17px;
+
+    background: rgba(88,217,255,.04);
+
+    border: 1px solid rgba(88,217,255,.12);
+
+    border-radius: 7px;
+}
+
+.gps-info strong {
+    color: #58d9ff;
+
+    font-size: 11px;
+
+    letter-spacing: 2px;
+}
+
+.gps-info p {
+    color: #7f919d;
+
+    font-size: 12px;
+
+    margin-top: 7px;
+
+    line-height: 1.5;
+}
+
+.loading {
+    text-align: center;
+
+    color: #58d9ff;
+}

@@ -458,7 +458,86 @@ function buildSmartRoute(item, drops, components) {
 // ==========================================
 // GPS SCORE V1
 // ==========================================
+// ==========================================
+// ANALYSE MISSION / ROTATION
+// ==========================================
 
+function analyzeLocation(location) {
+
+    const text = String(location || "");
+
+    const missionMatch = text.match(/\(([^)]+)\)/i);
+    const rotationMatch = text.match(/Rotation\s+([ABC])/i);
+
+    return {
+        missionType: missionMatch
+            ? missionMatch[1].trim()
+            : "Inconnue",
+
+        rotation: rotationMatch
+            ? rotationMatch[1].toUpperCase()
+            : null
+    };
+}
+
+
+function getRotationScore(rotation) {
+
+    switch (rotation) {
+
+        case "A":
+            return 15;
+
+        case "B":
+            return 10;
+
+        case "C":
+            return 5;
+
+        default:
+            return 8;
+    }
+}
+
+
+function getMissionScore(missionType) {
+
+    const mission = normalizeText(missionType);
+
+    // V2 : valeurs provisoires.
+    // Elles représentent une préférence d'efficacité
+    // et seront affinées avec de vraies données de durée.
+
+    if (mission.includes("capture")) {
+        return 15;
+    }
+
+    if (mission.includes("exterminate")) {
+        return 13;
+    }
+
+    if (mission.includes("disruption")) {
+        return 12;
+    }
+
+    if (mission.includes("rescue")) {
+        return 12;
+    }
+
+    if (mission.includes("spy")) {
+        return 10;
+    }
+
+    if (mission.includes("survival")) {
+        return 8;
+    }
+
+    if (mission.includes("defense")) {
+        return 7;
+    }
+
+    return 8;
+}
 function calculateGPSScore(route) {
 
     if (!route) {
@@ -489,29 +568,49 @@ function calculateGPSScore(route) {
             : 0;
 
 
-    // 60 points maximum :
-    // plusieurs composants dans la même mission
+    const missionData =
+        analyzeLocation(route.location);
+
+
+    // 40 points : regroupement
 
     const componentScore =
         Math.min(
-            componentCount * 30,
-            60
+            componentCount * 20,
+            40
         );
 
 
-    // 40 points maximum :
-    // probabilité moyenne de drop
+    // 30 points : probabilité
 
     const chanceScore =
         Math.min(
-            averageChance * 2,
-            40
+            averageChance * 1.5,
+            30
+        );
+
+
+    // 15 points : rotation
+
+    const rotationScore =
+        getRotationScore(
+            missionData.rotation
+        );
+
+
+    // 15 points : type de mission
+
+    const missionScore =
+        getMissionScore(
+            missionData.missionType
         );
 
 
     return Math.round(
         componentScore +
-        chanceScore
+        chanceScore +
+        rotationScore +
+        missionScore
     );
 }
 
@@ -772,7 +871,9 @@ routes.sort((a, b) => {
                     <div class="route-component">
 
                         <div>
-
+<div class="route-components">
+...
+</div>
                             <span>
                                 COMPOSANT
                             </span>
@@ -802,7 +903,6 @@ routes.sort((a, b) => {
 
             </div>
 
-
             ${
                 routes.length > 1
                     ? buildAlternativeRoutes(
@@ -815,7 +915,55 @@ routes.sort((a, b) => {
     `;
 }
 
+<details class="gps-explanation">
 
+    <summary>
+        Pourquoi cette route ?
+    </summary>
+
+    <div class="gps-explanation-content">
+
+        <p>
+            ✓ ${bestRoute.components.length}
+            composant(s) farmable(s) ici
+        </p>
+
+        <p>
+            ✓ Chance moyenne :
+            ${
+                formatChance(
+                    bestRoute.components.reduce(
+                        (total, component) =>
+                            total + component.chance,
+                        0
+                    ) / bestRoute.components.length
+                )
+            }
+        </p>
+
+        <p>
+            ⚡ Mission :
+            ${
+                escapeHTML(
+                    analyzeLocation(
+                        bestRoute.location
+                    ).missionType
+                )
+            }
+        </p>
+
+        <p>
+            ⟳ Rotation :
+            ${
+                analyzeLocation(
+                    bestRoute.location
+                ).rotation || "Non précisée"
+            }
+        </p>
+
+    </div>
+
+</details>
 // ==========================================
 // ROUTES ALTERNATIVES
 // ==========================================

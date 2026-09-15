@@ -1,13 +1,13 @@
-const API_URL = "https://api.warframestat.us/items/search/";
+const API = "https://api.warframestat.us";
 
 const searchInput = document.getElementById("searchInput");
 const searchButton = document.getElementById("searchButton");
 const searchResults = document.getElementById("searchResults");
 
 
-// ==============================
-// RECHERCHE
-// ==============================
+// ==========================================
+// RECHERCHE PRINCIPALE
+// ==========================================
 
 async function searchItem() {
 
@@ -18,60 +18,45 @@ async function searchItem() {
         return;
     }
 
-    showLoading();
+    showLoading(`Recherche de "${query}"...`);
 
     try {
 
-        const response = await fetch(
-            API_URL + encodeURIComponent(query)
-        );
+        let items = await searchDirect(query);
 
-        if (!response.ok) {
-            throw new Error("Erreur API");
+        // Si la recherche directe échoue,
+        // on cherche dans la base complète.
+        if (!items.length) {
+            items = await searchAllItems(query);
         }
 
-        const data = await response.json();
+        if (!items.length) {
 
-        let items = [];
-
-        if (Array.isArray(data)) {
-            items = data;
-        } else if (data && Array.isArray(data.items)) {
-            items = data.items;
-        } else if (data) {
-            items = [data];
-        }
-
-        if (items.length === 0) {
             showMessage(
                 `Aucun résultat trouvé pour "${escapeHTML(query)}".`
             );
+
             return;
         }
 
-        // On cherche d'abord une correspondance exacte
-        const exactItem = items.find(item =>
-            item.name &&
-            item.name.toLowerCase() === query.toLowerCase()
-        );
+        const item = chooseBestResult(items, query);
 
-        const item = exactItem || items[0];
-
-        displayItem(item);
+        displayGPS(item);
 
     } catch (error) {
 
-        console.error(error);
+        console.error("WARFRAME GPS ERROR:", error);
 
         searchResults.innerHTML = `
             <div class="result-card">
 
                 <strong>
-                    Impossible de contacter la base Warframe.
+                    Impossible de récupérer les données.
                 </strong>
 
-                <p>
-                    Réessaie dans quelques instants.
+                <p class="item-description">
+                    La base Warframe est peut-être temporairement
+                    indisponible. Réessaie dans quelques instants.
                 </p>
 
             </div>
@@ -80,11 +65,120 @@ async function searchItem() {
 }
 
 
-// ==============================
-// AFFICHAGE
-// ==============================
+// ==========================================
+// RECHERCHE API DIRECTE
+// ==========================================
 
-function displayItem(item) {
+async function searchDirect(query) {
+
+    try {
+
+        const response = await fetch(
+            `${API}/items/search/${encodeURIComponent(query)}`
+        );
+
+        if (!response.ok) {
+            return [];
+        }
+
+        const data = await response.json();
+
+        return normalizeResults(data);
+
+    } catch {
+        return [];
+    }
+}
+
+
+// ==========================================
+// RECHERCHE DE SECOURS
+// ==========================================
+
+async function searchAllItems(query) {
+
+    const response = await fetch(`${API}/items`);
+
+    if (!response.ok) {
+        return [];
+    }
+
+    const data = await response.json();
+
+    const items = normalizeResults(data);
+
+    const normalizedQuery = normalizeText(query);
+
+    return items.filter(item => {
+
+        if (!item || !item.name) {
+            return false;
+        }
+
+        const name = normalizeText(item.name);
+
+        return (
+            name === normalizedQuery ||
+            name.includes(normalizedQuery)
+        );
+    });
+}
+
+
+// ==========================================
+// NORMALISATION
+// ==========================================
+
+function normalizeResults(data) {
+
+    if (Array.isArray(data)) {
+        return data;
+    }
+
+    if (data && Array.isArray(data.items)) {
+        return data.items;
+    }
+
+    if (data && typeof data === "object") {
+        return [data];
+    }
+
+    return [];
+}
+
+
+function normalizeText(text) {
+
+    return String(text)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLowerCase();
+}
+
+
+// ==========================================
+// CHOIX DU MEILLEUR RESULTAT
+// ==========================================
+
+function chooseBestResult(items, query) {
+
+    const normalizedQuery = normalizeText(query);
+
+    const exact = items.find(item =>
+        item.name &&
+        normalizeText(item.name) === normalizedQuery
+    );
+
+    return exact || items[0];
+}
+
+
+// ==========================================
+// GPS
+// ==========================================
+
+function displayGPS(item) {
 
     const name =
         item.name ||
@@ -93,6 +187,7 @@ function displayItem(item) {
     const category =
         item.category ||
         item.type ||
+        item.productCategory ||
         "Objet Warframe";
 
     const description =
@@ -104,76 +199,201 @@ function displayItem(item) {
         : null;
 
 
-    let dropsHTML = "";
+    const drops = getDrops(item);
 
-    if (
-        Array.isArray(item.drops) &&
-        item.drops.length > 0
-    ) {
+    const components = getComponents(item);
 
-        const drops = item.drops.slice(0, 5);
+    const bestDrop = chooseBestDrop(drops);
 
-        dropsHTML = `
-            <div class="drops-section">
 
-                <span class="gps-label">
-                    LOCALISATIONS / DROPS
-                </span>
+    searchResults.innerHTML = `
+        <div class="result-card gps-card">
 
-                ${drops.map(drop => {
+            ${buildHeader(
+                name,
+                category,
+                image
+            )}
 
-                    const location =
-                        drop.location ||
-                        "Localisation inconnue";
+            <p class="item-description">
+                ${escapeHTML(description)}
+            </p>
 
-                    const chance =
-                        typeof drop.chance === "number"
-                            ? `${(drop.chance * 100).toFixed(2)} %`
-                            : "Chance inconnue";
 
-                    const rarity =
-                        drop.rarity ||
-                        "";
+            ${buildRoute(bestDrop)}
 
-                    return `
-                        <div class="drop-row">
 
-                            <div>
-                                <strong>
-                                    ${escapeHTML(location)}
-                                </strong>
+            ${buildDrops(drops)}
 
-                                ${
-                                    rarity
-                                    ? `<small>${escapeHTML(rarity)}</small>`
-                                    : ""
-                                }
-                            </div>
 
-                            <span>
-                                ${escapeHTML(chance)}
-                            </span>
+            ${buildComponents(components)}
 
-                        </div>
-                    `;
 
-                }).join("")}
+            ${buildGPSAdvice(
+                item,
+                drops,
+                components
+            )}
+
+        </div>
+    `;
+}
+
+
+// ==========================================
+// HEADER
+// ==========================================
+
+function buildHeader(name, category, image) {
+
+    return `
+        <div class="result-top">
+
+            <div class="result-title">
+
+                ${
+                    image
+                    ? `
+                        <img
+                            class="item-image"
+                            src="${escapeHTML(image)}"
+                            alt="${escapeHTML(name)}"
+                        >
+                    `
+                    : ""
+                }
+
+                <div>
+
+                    <span class="result-category">
+                        ${escapeHTML(category)}
+                    </span>
+
+                    <h3>
+                        ${escapeHTML(name)}
+                    </h3>
+
+                </div>
 
             </div>
-        `;
 
-    } else {
+            <span class="recommended">
+                GPS ACTIVE
+            </span>
 
-        dropsHTML = `
-            <div class="drops-section">
+        </div>
+    `;
+}
+
+
+// ==========================================
+// DROPS
+// ==========================================
+
+function getDrops(item) {
+
+    let drops = [];
+
+    if (Array.isArray(item.drops)) {
+        drops.push(...item.drops);
+    }
+
+    if (Array.isArray(item.dropLocations)) {
+
+        item.dropLocations.forEach(location => {
+
+            if (typeof location === "string") {
+
+                drops.push({
+                    location: location
+                });
+
+            } else {
+
+                drops.push(location);
+            }
+        });
+    }
+
+    return drops;
+}
+
+
+// ==========================================
+// MEILLEUR DROP
+// ==========================================
+
+function chooseBestDrop(drops) {
+
+    if (!drops.length) {
+        return null;
+    }
+
+    return [...drops].sort((a, b) => {
+
+        return getChance(b) - getChance(a);
+
+    })[0];
+}
+
+
+function getChance(drop) {
+
+    const chance = Number(drop?.chance);
+
+    if (!Number.isFinite(chance)) {
+        return 0;
+    }
+
+    return chance;
+}
+
+
+function formatChance(chance) {
+
+    const value = Number(chance);
+
+    if (!Number.isFinite(value)) {
+        return "Non précisée";
+    }
+
+    /*
+      Certaines données utilisent 0.1 = 10 %,
+      d'autres peuvent déjà être exprimées en %.
+    */
+
+    const percentage =
+        value <= 1
+            ? value * 100
+            : value;
+
+    return `${percentage.toFixed(2)} %`;
+}
+
+
+// ==========================================
+// ROUTE GPS
+// ==========================================
+
+function buildRoute(drop) {
+
+    if (!drop) {
+
+        return `
+            <div class="gps-route">
 
                 <span class="gps-label">
-                    LOCALISATION
+                    ROUTE GPS
                 </span>
 
-                <p class="no-drop">
-                    Aucune donnée de drop directe disponible
-                    pour cet objet.
+                <h4>
+                    Localisation automatique indisponible
+                </h4>
+
+                <p>
+                    Cet objet existe dans la base,
+                    mais aucune destination exploitable
+                    n'est fournie directement.
                 </p>
 
             </div>
@@ -181,66 +401,60 @@ function displayItem(item) {
     }
 
 
-    searchResults.innerHTML = `
-        <div class="result-card">
-
-            <div class="result-top">
-
-                <div class="result-title">
-
-                    ${
-                        image
-                        ? `
-                        <img
-                            class="item-image"
-                            src="${image}"
-                            alt="${escapeHTML(name)}"
-                        >
-                        `
-                        : ""
-                    }
-
-                    <div>
-
-                        <span class="result-category">
-                            ${escapeHTML(category)}
-                        </span>
-
-                        <h3>
-                            ${escapeHTML(name)}
-                        </h3>
-
-                    </div>
-
-                </div>
+    const location =
+        drop.location ||
+        drop.place ||
+        drop.node ||
+        drop.mission ||
+        "Localisation inconnue";
 
 
-                <span class="recommended">
-                    WARFRAME GPS
+    return `
+        <div class="gps-route">
+
+            <div class="gps-route-title">
+
+                <span class="gps-label">
+                    ROUTE GPS RECOMMANDÉE
+                </span>
+
+                <span class="best-badge">
+                    ★ MEILLEUR DROP DISPONIBLE
                 </span>
 
             </div>
 
+            <h4>
+                ${escapeHTML(location)}
+            </h4>
 
-            <p class="item-description">
-                ${escapeHTML(description)}
-            </p>
+            <div class="gps-stats">
 
+                <div>
 
-            ${dropsHTML}
+                    <span>
+                        CHANCE
+                    </span>
 
+                    <strong>
+                        ${formatChance(drop.chance)}
+                    </strong>
 
-            <div class="gps-info">
+                </div>
 
-                <strong>
-                    GPS
-                </strong>
+                <div>
 
-                <p>
-                    Nous allons prochainement utiliser
-                    ces données pour calculer automatiquement
-                    la meilleure route de farm.
-                </p>
+                    <span>
+                        RARETÉ
+                    </span>
+
+                    <strong>
+                        ${escapeHTML(
+                            drop.rarity || "Non précisée"
+                        )}
+                    </strong>
+
+                </div>
 
             </div>
 
@@ -249,15 +463,221 @@ function displayItem(item) {
 }
 
 
-// ==============================
-// INTERFACE
-// ==============================
+// ==========================================
+// LISTE DES DROPS
+// ==========================================
 
-function showLoading() {
+function buildDrops(drops) {
+
+    if (!drops.length) {
+        return "";
+    }
+
+    const sortedDrops = [...drops]
+        .sort(
+            (a, b) =>
+                getChance(b) - getChance(a)
+        )
+        .slice(0, 8);
+
+
+    return `
+        <div class="drops-section">
+
+            <span class="gps-label">
+                AUTRES DESTINATIONS
+            </span>
+
+            ${sortedDrops.map((drop, index) => {
+
+                const location =
+                    drop.location ||
+                    drop.place ||
+                    drop.node ||
+                    drop.mission ||
+                    "Localisation inconnue";
+
+                return `
+                    <div class="drop-row">
+
+                        <div>
+
+                            <strong>
+                                ${index + 1}.
+                                ${escapeHTML(location)}
+                            </strong>
+
+                            ${
+                                drop.rarity
+                                ? `
+                                    <small>
+                                        ${escapeHTML(drop.rarity)}
+                                    </small>
+                                `
+                                : ""
+                            }
+
+                        </div>
+
+                        <span>
+                            ${formatChance(drop.chance)}
+                        </span>
+
+                    </div>
+                `;
+
+            }).join("")}
+
+        </div>
+    `;
+}
+
+
+// ==========================================
+// COMPOSANTS
+// ==========================================
+
+function getComponents(item) {
+
+    if (!Array.isArray(item.components)) {
+        return [];
+    }
+
+    return item.components;
+}
+
+
+function buildComponents(components) {
+
+    if (!components.length) {
+        return "";
+    }
+
+    return `
+        <div class="components-section">
+
+            <span class="gps-label">
+                COMPOSANTS NÉCESSAIRES
+            </span>
+
+            <div class="component-grid">
+
+                ${components.map(component => {
+
+                    const name =
+                        component.name ||
+                        "Composant";
+
+                    const quantity =
+                        component.itemCount ||
+                        component.count ||
+                        1;
+
+                    return `
+                        <button
+                            class="component"
+                            onclick="searchComponent(
+                                '${escapeJS(name)}'
+                            )"
+                        >
+
+                            <strong>
+                                ${escapeHTML(name)}
+                            </strong>
+
+                            <span>
+                                × ${quantity}
+                            </span>
+
+                        </button>
+                    `;
+
+                }).join("")}
+
+            </div>
+
+        </div>
+    `;
+}
+
+
+// ==========================================
+// CONSEILS GPS
+// ==========================================
+
+function buildGPSAdvice(item, drops, components) {
+
+    let text;
+
+    if (drops.length > 1) {
+
+        text =
+            `Warframe GPS a trouvé ${drops.length} sources possibles. ` +
+            `La route affichée en premier possède la meilleure ` +
+            `probabilité numérique disponible dans les données.`;
+
+    } else if (drops.length === 1) {
+
+        text =
+            "Une source directe a été trouvée pour cet objet.";
+
+    } else if (components.length) {
+
+        text =
+            "Aucun drop direct n'est disponible, mais les composants " +
+            "nécessaires ont été identifiés. Clique sur un composant " +
+            "pour poursuivre la route GPS.";
+
+    } else {
+
+        text =
+            "Les données disponibles ne permettent pas encore de " +
+            "calculer automatiquement une route de farm fiable.";
+    }
+
+
+    return `
+        <div class="gps-info">
+
+            <strong>
+                ANALYSE GPS
+            </strong>
+
+            <p>
+                ${escapeHTML(text)}
+            </p>
+
+        </div>
+    `;
+}
+
+
+// ==========================================
+// RECHERCHE D'UN COMPOSANT
+// ==========================================
+
+function searchComponent(name) {
+
+    searchInput.value = name;
+
+    searchItem();
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
+
+
+// ==========================================
+// INTERFACE
+// ==========================================
+
+function showLoading(message) {
 
     searchResults.innerHTML = `
         <div class="result-card loading">
-            Recherche dans la base Warframe...
+            ${escapeHTML(message)}
         </div>
     `;
 }
@@ -282,9 +702,9 @@ function selectCategory(category) {
 }
 
 
-// ==============================
-// SECURITE HTML
-// ==============================
+// ==========================================
+// SECURITE
+// ==========================================
 
 function escapeHTML(value) {
 
@@ -296,9 +716,17 @@ function escapeHTML(value) {
 }
 
 
-// ==============================
+function escapeJS(value) {
+
+    return String(value)
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'");
+}
+
+
+// ==========================================
 // EVENEMENTS
-// ==============================
+// ==========================================
 
 searchButton.addEventListener(
     "click",

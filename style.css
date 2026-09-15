@@ -1113,3 +1113,64 @@ footer {
         grid-template-columns: 1fr;
     }
 }
+/* PROGRESSION JOUEUR */
+
+.owned-toggle {
+    margin-left: auto;
+
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    cursor: pointer;
+
+    padding: 7px 10px;
+
+    border: 1px solid rgba(88,217,255,.2);
+    border-radius: 5px;
+
+    font-size: 10px;
+
+    color: #8fa2ad;
+}
+
+.owned-toggle input {
+    accent-color: #58d9ff;
+}
+
+.component-owned {
+    opacity: .55;
+}
+
+.component-owned .component-number {
+    background: #58d9ff;
+    color: #041017;
+}
+
+.owned-message {
+    padding: 13px;
+
+    border-left: 2px solid #58d9ff;
+
+    background: rgba(88,217,255,.05);
+
+    color: #78a9b9;
+
+    font-size: 11px;
+
+    border-radius: 4px;
+}
+
+@media(max-width:550px) {
+
+    .component-header {
+        flex-wrap: wrap;
+    }
+
+    .owned-toggle {
+        margin-left: 0;
+        width: 100%;
+        justify-content: center;
+    }
+}
+

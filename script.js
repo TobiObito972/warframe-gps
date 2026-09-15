@@ -877,6 +877,177 @@ function buildComponents(components) {
                             ? `https://cdn.warframestat.us/img/${component.imageName}`
                             : null;
 
+                    const owned =
+                        isComponentOwned(name);
+
+                    return `
+                        <div
+                            class="component-gps ${owned ? "component-owned" : ""}"
+                            data-component="${escapeHTML(name)}"
+                        >
+
+                            <div class="component-number">
+                                ${owned ? "✓" : String(index + 1).padStart(2, "0")}
+                            </div>
+
+                            <div class="component-main">
+
+                                <div class="component-header">
+
+                                    ${
+                                        image
+                                        ? `
+                                            <img
+                                                class="component-image"
+                                                src="${escapeHTML(image)}"
+                                                alt="${escapeHTML(name)}"
+                                            >
+                                        `
+                                        : ""
+                                    }
+
+                                    <div class="component-name">
+
+                                        <strong>
+                                            ${escapeHTML(name)}
+                                        </strong>
+
+                                        <span>
+                                            Quantité : ${quantity}
+                                        </span>
+
+                                    </div>
+
+                                    <label class="owned-toggle">
+
+                                        <input
+                                            type="checkbox"
+                                            ${owned ? "checked" : ""}
+                                            onchange="toggleComponent(
+                                                '${escapeJS(name)}',
+                                                this.checked
+                                            )"
+                                        >
+
+                                        <span>
+                                            Je l'ai
+                                        </span>
+
+                                    </label>
+
+                                </div>
+
+
+                                ${
+                                    owned
+                                    ? `
+                                        <div class="owned-message">
+                                            ✓ Composant déjà obtenu —
+                                            retiré de la route GPS.
+                                        </div>
+                                    `
+                                    :
+                                    bestDrop
+                                    ? `
+                                        <div class="component-destination">
+
+                                            <span>
+                                                DESTINATION RECOMMANDÉE
+                                            </span>
+
+                                            <strong>
+                                                ${escapeHTML(location)}
+                                            </strong>
+
+                                            <small>
+                                                Chance :
+                                                ${formatChance(bestDrop.chance)}
+
+                                                ${
+                                                    bestDrop.rarity
+                                                    ? ` • ${escapeHTML(bestDrop.rarity)}`
+                                                    : ""
+                                                }
+                                            </small>
+
+                                        </div>
+                                    `
+                                    : `
+                                        <div class="component-destination unavailable">
+
+                                            <span>
+                                                ACQUISITION
+                                            </span>
+
+                                            <strong>
+                                                Pas de drop direct identifié
+                                            </strong>
+
+                                        </div>
+                                    `
+                                }
+
+                            </div>
+
+                        </div>
+                    `;
+
+                }).join("")}
+
+            </div>
+
+        </div>
+    `;
+}
+
+    if (!components.length) {
+        return "";
+    }
+
+    return `
+        <div class="components-section">
+
+            <span class="gps-label">
+                ROUTE DE FABRICATION
+            </span>
+
+            <div class="component-route">
+
+                ${components.map((component, index) => {
+
+                    const name =
+                        component.name ||
+                        "Composant";
+
+                    const quantity =
+                        component.itemCount ||
+                        component.count ||
+                        1;
+
+                    const drops =
+                        Array.isArray(component.drops)
+                            ? component.drops
+                            : [];
+
+                    const bestDrop =
+                        chooseBestDrop(drops);
+
+                    const location =
+                        bestDrop
+                            ? (
+                                bestDrop.location ||
+                                bestDrop.place ||
+                                bestDrop.node ||
+                                bestDrop.mission ||
+                                "Localisation inconnue"
+                              )
+                            : null;
+
+                    const image =
+                        component.imageName
+                            ? `https://cdn.warframestat.us/img/${component.imageName}`
+                            : null;
+
                     return `
                         <div class="component-gps">
 
@@ -1139,7 +1310,74 @@ function escapeJS(value) {
         .replace(/'/g, "\\'");
 }
 
+// ==========================================
+// PROGRESSION DU JOUEUR
+// ==========================================
 
+function getOwnedComponents() {
+
+    try {
+
+        return JSON.parse(
+            localStorage.getItem(
+                "warframeGPS_ownedComponents"
+            )
+        ) || [];
+
+    } catch {
+
+        return [];
+    }
+}
+
+
+function isComponentOwned(name) {
+
+    const owned =
+        getOwnedComponents();
+
+    return owned.includes(
+        normalizeText(name)
+    );
+}
+
+
+function toggleComponent(name, checked) {
+
+    let owned =
+        getOwnedComponents();
+
+    const normalizedName =
+        normalizeText(name);
+
+
+    if (checked) {
+
+        if (!owned.includes(normalizedName)) {
+            owned.push(normalizedName);
+        }
+
+    } else {
+
+        owned =
+            owned.filter(
+                component =>
+                    component !== normalizedName
+            );
+    }
+
+
+    localStorage.setItem(
+        "warframeGPS_ownedComponents",
+        JSON.stringify(owned)
+    );
+
+
+    // Relance la recherche actuelle
+    // pour actualiser automatiquement le GPS.
+
+    searchItem();
+}
 // ==========================================
 // EVENEMENTS
 // ==========================================
